@@ -10,123 +10,121 @@ const Todo = require('../models/todo');
 
 module.exports = function(server) {
 
-	/**
-	 * POST
-	 */
-	server.post('/todos', (req, res, next) => {
-		if (!req.is('application/json')) {
-			return next(
-				new errors.InvalidContentError("Expects 'application/json'"),
-			);
-		}
+    /**
+     * POST
+     */
+    server.post('/todos', (req, res, next) => {
+        if (!req.is('application/json')) {
+            return next(
+                new errors.InvalidContentError("Expects 'application/json'"),
+            );
+        }
 
-		let data = req.body || {};
+        let data = req.body || {};
+        let todo = new Todo(data);
+        todo.save(function(err) {
+            if (err) {
+                console.error(err);
+                return next(new errors.InternalError(err.message));
+                next();
+            }
 
-		let todo = new Todo(data);
-		todo.save(function(err) {
-			if (err) {
-				console.error(err);
-				return next(new errors.InternalError(err.message));
-				next();
-			}
+            res.send(201, {success: true});
+            next();
+        });
+    });
 
-			res.send(201);
-			next();
-		});
-	});
+    /**
+     * LIST
+     */
+    server.get('/todos', (req, res, next) => {
+        Todo.apiQuery(req.params, function(err, docs) {
+            if (err) {
+                console.error(err);
+                return next(
+                    new errors.InvalidContentError(err.errors.name.message),
+                );
+            }
+            res.send(docs);
+            next();
+        });
+    });
 
-	/**
-	 * LIST
-	 */
-	server.get('/todos', (req, res, next) => {
-		Todo.apiQuery(req.params, function(err, docs) {
-			if (err) {
-				console.error(err);
-				return next(
-					new errors.InvalidContentError(err.errors.name.message),
-				);
-			}
+    /**
+     * GET
+     */
+    server.get('/todos/:todo_id', (req, res, next) => {
+        Todo.findOne({ _id: req.params.todo_id }, function(err, doc) {
+            if (err) {
+                console.error(err);
+                return next(
+                    new errors.InvalidContentError(err.errors.name.message),
+                );
+            }
 
-			res.send(docs);
-			next();
-		});
-	});
+            res.send(doc);
+            next();
+        });
+    });
 
-	/**
-	 * GET
-	 */
-	server.get('/todos/:todo_id', (req, res, next) => {
-		Todo.findOne({ _id: req.params.todo_id }, function(err, doc) {
-			if (err) {
-				console.error(err);
-				return next(
-					new errors.InvalidContentError(err.errors.name.message),
-				);
-			}
+    /**
+     * UPDATE
+     */
+    server.put('/todos/:todo_id', (req, res, next) => {
+        if (!req.is('application/json')) {
+            return next(
+                new errors.InvalidContentError("Expects 'application/json'"),
+            );
+        }
 
-			res.send(doc);
-			next();
-		});
-	});
+        let data = req.body || {};
 
-	/**
-	 * UPDATE
-	 */
-	server.put('/todos/:todo_id', (req, res, next) => {
-		if (!req.is('application/json')) {
-			return next(
-				new errors.InvalidContentError("Expects 'application/json'"),
-			);
-		}
+        if (!data._id) {
+            data = Object.assign({}, data, { _id: req.params.todo_id });
+        }
 
-		let data = req.body || {};
+        Todo.findOne({ _id: req.params.todo_id }, function(err, doc) {
+            if (err) {
+                console.error(err);
+                return next(
+                    new errors.InvalidContentError(err.errors.name.message),
+                );
+            } else if (!doc) {
+                return next(
+                    new errors.ResourceNotFoundError(
+                        'The resource you requested could not be found.',
+                    ),
+                );
+            }
 
-		if (!data._id) {
-			data = Object.assign({}, data, { _id: req.params.todo_id });
-		}
+            Todo.update({ _id: data._id }, data, function(err) {
+                if (err) {
+                    console.error(err);
+                    return next(
+                        new errors.InvalidContentError(err.errors.name.message),
+                    );
+                }
 
-		Todo.findOne({ _id: req.params.todo_id }, function(err, doc) {
-			if (err) {
-				console.error(err);
-				return next(
-					new errors.InvalidContentError(err.errors.name.message),
-				);
-			} else if (!doc) {
-				return next(
-					new errors.ResourceNotFoundError(
-						'The resource you requested could not be found.',
-					),
-				);
-			}
+                res.send(200, data);
+                next();
+            });
+        });
+    });
 
-			Todo.update({ _id: data._id }, data, function(err) {
-				if (err) {
-					console.error(err);
-					return next(
-						new errors.InvalidContentError(err.errors.name.message),
-					);
-				}
+    /**
+     * DELETE
+     */
+    server.del('/todos/:todo_id', (req, res, next) => {
+        Todo.remove({ _id: req.params.todo_id }, function(err) {
+            if (err) {
+                console.error(err);
+                return next(
+                    new errors.InvalidContentError(err.errors.name.message),
+                );
+            }
 
-				res.send(200, data);
-				next();
-			});
-		});
-	});
-
-	/**
-	 * DELETE
-	 */
-	server.del('/todos/:todo_id', (req, res, next) => {
-		Todo.remove({ _id: req.params.todo_id }, function(err) {
-			if (err) {
-				console.error(err);
-				return next(
-					new errors.InvalidContentError(err.errors.name.message),
-				);
-			}
-
-			res.send(204);
-			next();
-		});
-	});
+            res.send(200, {success: true});
+            next();
+        });
+    });
 };
